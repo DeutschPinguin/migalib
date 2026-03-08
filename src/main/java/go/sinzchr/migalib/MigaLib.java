@@ -24,7 +24,13 @@ public class MigaLib
         }
         
         
-        public static @NotNull Identifier id (String path)
+        public static @NotNull String id (@NotNull String path)
+        {
+                return ID + ":" + path;
+        }
+        
+        
+        public static @NotNull Identifier identifier (@NotNull String path)
         {
                 return Objects.requireNonNull(Identifier.of(ID, path));
         }
