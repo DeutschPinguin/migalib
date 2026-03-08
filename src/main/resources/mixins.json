@@ -1,0 +1,24 @@
+{
+        "required": true,
+
+        "package": "go.sinzchr.minigameslib.mixin",
+
+        "compatibilityLevel": "JAVA_21",
+
+        "mixins": [
+                "AbstractDecorationEntityMixin",
+                "AbstractMinecartEntityMixin",
+                "ArmorStandEntityMixin",
+                "BoatEntityMixin",
+                "EndCrystalEntityMixin",
+                "EnderDragonPartMixin",
+                "EntityMixin",
+                "ExperienceOrbEntityMixin",
+                "ItemEntityMixin",
+                "LivingEntityMixin"
+        ],
+
+        "injectors": {
+                "defaultRequire": 1
+        }
+}

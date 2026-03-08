@@ -1,0 +1,13 @@
+{
+        "required": true,
+
+        "package": "go.sinzchr.minigameslib.mixin",
+
+        "compatibilityLevel": "JAVA_21",
+
+        "mixins": [],
+
+        "injectors": {
+                "defaultRequire": 1
+        }
+}
