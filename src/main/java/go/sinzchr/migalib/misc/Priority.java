@@ -12,7 +12,7 @@ public enum Priority
         MONITOR("monitor", 0);
         
         
-        public static final Priority[] ALL = {HIGHEST, HIGH, NORMAL, LOW, LOWEST, MONITOR};
+        public static final Priority[] ALL_SORTED = {HIGHEST, HIGH, NORMAL, LOW, LOWEST, MONITOR};
         
         public final String name;
         public final int index;

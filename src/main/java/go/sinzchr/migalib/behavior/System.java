@@ -25,7 +25,10 @@ public class System
         }
         
         
-        public <C> System add (@NotNull Event<C> event, @NotNull Consumer<C> consumer)
+        public <C> System add (
+                @NotNull Event<C> event,
+                @NotNull Consumer<@NotNull Context<C>> consumer
+        )
         {
                 if (!MAP.containsKey(event)) MAP.put(event, new HashSet<>());
                 MAP.get(event).add((Consumer) consumer);
@@ -33,7 +36,10 @@ public class System
         }
         
         
-        public <C> System remove (@NotNull Event<C> event, @NotNull Consumer<C> consumer)
+        public <C> System remove (
+                @NotNull Event<C> event,
+                @NotNull Consumer<@NotNull Context<C>> consumer
+        )
         {
                 if (MAP.containsKey(event)) MAP.get(event).remove(consumer);
                 return this;
@@ -41,7 +47,10 @@ public class System
         
         
         @SafeVarargs
-        public final <C> System add (@NotNull Event<C> event, @NotNull Consumer<C>... consumers)
+        public final <C> System add (
+                @NotNull Event<C> event,
+                @NotNull Consumer<@NotNull Context<C>>... consumers
+        )
         {
                 for (var consumer : consumers) add(event, consumer);
                 return this;
@@ -49,21 +58,30 @@ public class System
         
         
         @SafeVarargs
-        public final <C> System remove (@NotNull Event<C> event, @NotNull Consumer<C>... consumers)
+        public final <C> System remove (
+                @NotNull Event<C> event,
+                @NotNull Consumer<@NotNull Context<C>>... consumers
+        )
         {
                 for (var consumer : consumers) remove(event, consumer);
                 return this;
         }
         
         
-        public final <C> System add (@NotNull Event<C> event, @NotNull Collection<@NotNull Consumer<C>> consumers)
+        public final <C> System add (
+                @NotNull Event<C> event,
+                @NotNull Collection<@NotNull Consumer<@NotNull Context<C>>> consumers
+        )
         {
                 for (var consumer : consumers) add(event, consumer);
                 return this;
         }
         
         
-        public final <C> System remove (@NotNull Event<C> event, @NotNull Collection<@NotNull Consumer<C>> consumers)
+        public final <C> System remove (
+                @NotNull Event<C> event,
+                @NotNull Collection<@NotNull Consumer<@NotNull Context<C>>> consumers
+        )
         {
                 for (var consumer : consumers) remove(event, consumer);
                 return this;

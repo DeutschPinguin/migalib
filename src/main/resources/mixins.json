@@ -1,7 +1,7 @@
 {
         "required": true,
 
-        "package": "go.sinzchr.minigameslib.mixin",
+        "package": "go.sinzchr.migalib.mixin",
 
         "compatibilityLevel": "JAVA_21",
 

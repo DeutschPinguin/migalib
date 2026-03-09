@@ -1,5 +1,6 @@
 package go.sinzchr.migalib.behavior;
 
+import go.sinzchr.migalib.MigaLib;
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.misc.Cancellable;
 import go.sinzchr.migalib.event.Listener;
@@ -20,17 +21,27 @@ public class EventBus
         
         public EventBus ()
         {
-                for (var priority : Priority.ALL) LISTENERS.put(priority, new ArrayList<>());
+                for (var priority : Priority.ALL_SORTED) LISTENERS.put(priority, new ArrayList<>());
         }
         
         
         @Override
-        public <C> void emit (@NotNull Context<C> context)
+        public <C> void emit (@NotNull Context<C> ctx)
         {
-                for (var priority : Priority.ALL)
+                for (var priority : Priority.ALL_SORTED)
                 {
-                        LISTENERS.get(priority).forEach(listener -> listener.emit(context));
-                        if (context.callback instanceof Cancellable cb && cb.isCancelled()) break;
+                        for (var listener : LISTENERS.get(priority))
+                        {
+                                try {
+                                        listener.emit(ctx);
+                                } catch (Exception e)
+                                {
+                                        MigaLib.LOGGER.error("Listener caught unexpected error when {} was emitted", ctx.event);
+                                        MigaLib.LOGGER.error(e.getMessage(), e);
+                                }
+                        }
+                        
+                        if (ctx.callback instanceof Cancellable cb && cb.isCancelled()) break;
                 }
         }
         
