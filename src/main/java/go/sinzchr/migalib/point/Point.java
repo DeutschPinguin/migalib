@@ -9,6 +9,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Position;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3i;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,21 +55,28 @@ public class Point
         }
         
         
-        public @NotNull Point toPoint ()
+        protected <T extends Point> @NotNull T to (@NotNull T point)
         {
-                var point = new Point(ID, WORLD, x, y, z, pitch, yaw);
+                point.x = x;
+                point.y = y;
+                point.z = z;
+                point.pitch = pitch;
+                point.yaw = yaw;
                 point.TAGS.addAll(TAGS);
                 point.METADATA.putAll(METADATA);
                 return point;
         }
         
         
+        public @NotNull Point toPoint ()
+        {
+                return to(new Point(ID, WORLD));
+        }
+        
+        
         public @NotNull MutPoint toMutablePoint ()
         {
-                var point = new MutPoint(ID, WORLD, x, y, z, pitch, yaw);
-                point.TAGS.addAll(TAGS);
-                point.METADATA.putAll(METADATA);
-                return point;
+                return to(new MutPoint(ID, WORLD));
         }
         
         
@@ -204,6 +212,55 @@ public class Point
         public @NotNull Identifier world ()
         {
                 return WORLD;
+        }
+        
+        
+        public double squaredMagnitude ()
+        {
+                return (x * x) + (y * y) + (z * z);
+        }
+        
+        
+        public double magnitude ()
+        {
+                return Math.sqrt(squaredMagnitude());
+        }
+        
+        
+        public double squaredDistanceTo (double x, double y, double z)
+        {
+                double dx = (this.x - x), dy = (this.y - y), dz = (this.z - z);
+                return (dx * dx) + (dy * dy) + (dz * dz);
+        }
+        
+        
+        public double distanceTo (double x, double y, double z)
+        {
+                return Math.sqrt(squaredDistanceTo(x, y, z));
+        }
+        
+        
+        public double squaredDistanceTo (@NotNull Position pos)
+        {
+                return squaredDistanceTo(pos.getX(), pos.getY(), pos.getZ());
+        }
+        
+        
+        public double distanceTo (@NotNull Position pos)
+        {
+                return distanceTo(pos.getX(), pos.getY(), pos.getZ());
+        }
+        
+        
+        public double squaredDistanceTo (@NotNull Vec3i pos)
+        {
+                return squaredDistanceTo(pos.getX(), pos.getY(), pos.getZ());
+        }
+        
+        
+        public double distanceTo (@NotNull Vec3i pos)
+        {
+                return distanceTo(pos.getX(), pos.getY(), pos.getZ());
         }
         
         

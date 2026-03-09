@@ -8,6 +8,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 
 
 public class MutPoint
@@ -70,9 +73,23 @@ public class MutPoint
         
         
         @Override
+        public @NotNull Set<@NotNull Identifier> tags ()
+        {
+                return TAGS;
+        }
+        
+        
+        @Override
         public @Nullable NbtCompound metadata (@NotNull Identifier modId)
         {
                 return METADATA.get(modId);
+        }
+        
+        
+        @Override
+        public @NotNull Map<@NotNull Identifier, @NotNull NbtCompound> allMetadata ()
+        {
+                return METADATA;
         }
         
         
@@ -102,6 +119,22 @@ public class MutPoint
         }
         
         
+        public void addPosition (double x, double y, double z)
+        {
+                this.x += x;
+                this.y += y;
+                this.z += z;
+        }
+        
+        
+        public void mulPosition (double x, double y, double z)
+        {
+                this.x *= x;
+                this.y *= y;
+                this.z *= z;
+        }
+        
+        
         public void x (double v)
         {
                 x = v;
@@ -122,8 +155,20 @@ public class MutPoint
         
         public void rotation (float pitch, float yaw)
         {
-                this.pitch = pitch;
-                this.yaw = yaw;
+                this.pitch = (pitch % 360) - 180;
+                this.yaw = (yaw % 360) - 180;
+        }
+        
+        
+        public void addRotation (float pitch, float yaw)
+        {
+                rotation(this.pitch + pitch, this.yaw + yaw);
+        }
+        
+        
+        public void mulRotation (float pitch, float yaw)
+        {
+                rotation(this.pitch * pitch, this.yaw * yaw);
         }
         
         

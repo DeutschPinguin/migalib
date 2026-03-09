@@ -20,6 +20,7 @@ public class MigaLib
         @Override
         public void onInitialize ()
         {
+                MigaLibCommands.init();
                 MigaLibEvents.init();
                 MigaLibResources.init();
                 MigaLibSessions.init();
