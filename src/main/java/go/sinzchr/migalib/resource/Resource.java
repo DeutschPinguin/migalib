@@ -10,14 +10,14 @@ public class Resource<T>
         
         protected final @NotNull String ID;
         protected final int hash;
-        protected final @NotNull Supplier<T> FALLBACK;
+        protected final @NotNull Supplier<T> DEFAULT;
         
         
-        public Resource (@NotNull String id, @NotNull Supplier<T> fallback)
+        public Resource (@NotNull String id, @NotNull Supplier<T> defaultValue)
         {
                 ID = id;
                 hash = ID.hashCode();
-                FALLBACK = fallback;
+                DEFAULT = defaultValue;
         }
         
         
@@ -27,9 +27,9 @@ public class Resource<T>
         }
         
         
-        public T getFallback ()
+        public T getDefaultValue ()
         {
-                return FALLBACK.get();
+                return DEFAULT.get();
         }
         
         

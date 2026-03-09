@@ -58,7 +58,25 @@ public class EventBus
         }
         
         
-        public @NotNull EventBus register (@NotNull Priority priority, @NotNull Listener listener)
+        public void setPriority (@NotNull Priority priority, @NotNull Listener listener)
+        {
+                if (has(listener)) PRIORITIES.put(listener, priority);
+        }
+        
+        
+        public void setPriority (@NotNull Priority priority, @NotNull Listener... listeners)
+        {
+                for (var listener : listeners) setPriority(priority, listener);
+        }
+        
+        
+        public void setPriority (@NotNull Priority priority, @NotNull Collection<@NotNull Listener> listeners)
+        {
+                for (var listener : listeners) setPriority(priority, listener);
+        }
+        
+        
+        public @NotNull EventBus add (@NotNull Priority priority, @NotNull Listener listener)
         {
                 if (has(listener)) return this;
                 PRIORITIES.put(listener, priority);
@@ -67,9 +85,9 @@ public class EventBus
         }
         
         
-        public @NotNull EventBus register (@NotNull Listener listener)
+        public @NotNull EventBus add (@NotNull Listener listener)
         {
-                return register(Priority.MONITOR, listener);
+                return add(Priority.MONITOR, listener);
         }
         
         
@@ -84,16 +102,16 @@ public class EventBus
         }
         
         
-        public @NotNull EventBus register (@NotNull Priority priority, @NotNull Listener... listeners)
+        public @NotNull EventBus add (@NotNull Priority priority, @NotNull Listener... listeners)
         {
-                for (var listener : listeners) register(priority, listener);
+                for (var listener : listeners) add(priority, listener);
                 return this;
         }
         
         
-        public @NotNull EventBus register (@NotNull Listener... listeners)
+        public @NotNull EventBus add (@NotNull Listener... listeners)
         {
-                return register(Priority.MONITOR, listeners);
+                return add(Priority.MONITOR, listeners);
         }
         
         
@@ -104,16 +122,16 @@ public class EventBus
         }
         
         
-        public @NotNull EventBus register (@NotNull Priority priority, @NotNull Collection<@NotNull Listener> listeners)
+        public @NotNull EventBus add (@NotNull Priority priority, @NotNull Collection<@NotNull Listener> listeners)
         {
-                for (var listener : listeners) register(priority, listener);
+                for (var listener : listeners) add(priority, listener);
                 return this;
         }
         
         
-        public @NotNull EventBus register (@NotNull Collection<@NotNull Listener> listeners)
+        public @NotNull EventBus add (@NotNull Collection<@NotNull Listener> listeners)
         {
-                return register(Priority.MONITOR, listeners);
+                return add(Priority.MONITOR, listeners);
         }
         
         
@@ -124,7 +142,7 @@ public class EventBus
         }
         
         
-        public void clear ()
+        public void clearAll ()
         {
                 PRIORITIES.clear();
                 LISTENERS.values().forEach(List::clear);

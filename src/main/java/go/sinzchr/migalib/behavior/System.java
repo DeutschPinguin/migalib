@@ -88,7 +88,7 @@ public class System
         }
         
         
-        public <C> void clear (@NotNull Event<C> event)
+        public <C> void removeFor (@NotNull Event<C> event)
         {
                 if (MAP.containsKey(event)) MAP.get(event).clear();
         }

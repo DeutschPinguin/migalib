@@ -1,8 +1,5 @@
 package go.sinzchr.migalib;
 
-import go.sinzchr.migalib.behavior.GameSession;
-import go.sinzchr.migalib.behavior.System;
-import go.sinzchr.migalib.misc.Priority;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
@@ -27,25 +24,6 @@ public class MigaLib
                 MigaLibResources.init();
                 MigaLibSessions.init();
                 MigaLibUtils.init();
-                
-                var session = new GameSession();
-                var modifierSystem = new System()
-                        .add(MigaLibEvents.ENTITY_DAMAGE, ctx -> {
-                                if (ctx.callback.damageAmount < 4f) ctx.callback.cancel();
-                        });
-                var loggerSystem = new System()
-                        .add(MigaLibEvents.ENTITY_DAMAGE, ctx -> {
-                                var attackerString = ctx.callback.attacker == null
-                                        ? ""
-                                        : " by [" + ctx.callback.attacker.getName().getString() + "]";
-                                LOGGER.info("Entity [{}] got damage [{}]{}",
-                                        ctx.callback.victim.getName().getString(),
-                                        ctx.callback.damageAmount,
-                                        attackerString
-                                );
-                        });
-                session.eventBus.register(Priority.NORMAL, modifierSystem).register(loggerSystem);
-                MigaLibSessions.subscribe(session);
         }
         
         

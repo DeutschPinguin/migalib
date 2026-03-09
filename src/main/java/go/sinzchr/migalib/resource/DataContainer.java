@@ -27,7 +27,7 @@ public class DataContainer
         @Override
         public <T> @NotNull T get (@NotNull Resource<T> resource)
         {
-                if (!RESOURCES.containsKey(resource)) RESOURCES.put(resource, resource.getFallback());
+                if (!RESOURCES.containsKey(resource)) RESOURCES.put(resource, resource.getDefaultValue());
                 return (T) RESOURCES.get(resource);
         }
         
