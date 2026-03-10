@@ -3,6 +3,8 @@ package go.sinzchr.migalib.point;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Position;
+import net.minecraft.util.math.Vec2f;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -119,6 +121,12 @@ public class MutPoint
         }
         
         
+        public void position (@NotNull Position pos)
+        {
+                position(pos.getX(), pos.getY(), pos.getZ());
+        }
+        
+        
         public void addPosition (double x, double y, double z)
         {
                 this.x += x;
@@ -127,11 +135,23 @@ public class MutPoint
         }
         
         
+        public void addPosition (@NotNull Position pos)
+        {
+                addPosition(pos.getX(), pos.getY(), pos.getZ());
+        }
+        
+        
         public void mulPosition (double x, double y, double z)
         {
                 this.x *= x;
                 this.y *= y;
                 this.z *= z;
+        }
+        
+        
+        public void mulPosition (@NotNull Position pos)
+        {
+                mulPosition(pos.getX(), pos.getY(), pos.getZ());
         }
         
         
@@ -160,15 +180,33 @@ public class MutPoint
         }
         
         
+        public void rotation (@NotNull Vec2f rot)
+        {
+                rotation(rot.y, rot.x);
+        }
+        
+        
         public void addRotation (float pitch, float yaw)
         {
                 rotation(this.pitch + pitch, this.yaw + yaw);
         }
         
         
+        public void addRotation (@NotNull Vec2f rot)
+        {
+                addRotation(rot.y, rot.x);
+        }
+        
+        
         public void mulRotation (float pitch, float yaw)
         {
                 rotation(this.pitch * pitch, this.yaw * yaw);
+        }
+        
+        
+        public void mulRotation (@NotNull Vec2f rot)
+        {
+                mulRotation(rot.y, rot.x);
         }
         
         

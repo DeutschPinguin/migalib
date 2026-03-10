@@ -28,7 +28,7 @@ public class PointsPersistentState
                 return world.getPersistentStateManager().getOrCreate(
                         PointsPersistentState::from,
                         PointsPersistentState::new,
-                        "migalib:global/points"
+                        "migalib.global_points"
                 );
         }
         

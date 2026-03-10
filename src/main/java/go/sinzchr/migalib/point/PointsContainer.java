@@ -99,9 +99,15 @@ public class PointsContainer
         }
         
         
+        public void remove (@NotNull Identifier id)
+        {
+                MAP.remove(id);
+        }
+        
+        
         public void remove (@NotNull Point point)
         {
-                MAP.remove(point.id());
+                remove(point.id());
         }
         
         
@@ -114,6 +120,12 @@ public class PointsContainer
         public void add (@NotNull Point... points)
         {
                 for (var point : points) add(point);
+        }
+        
+        
+        public void remove (@NotNull Identifier... ids)
+        {
+                for (var point : ids) remove(point);
         }
         
         

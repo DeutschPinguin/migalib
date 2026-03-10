@@ -103,7 +103,7 @@ public class Point
         
         public static @NotNull Point deserialize (@NotNull NbtCompound nbt)
         {
-                String id = nbt.getString("id"), world = nbt.getString("world");
+                String id = nbt.getString("id"), world = nbt.getString("dimension");
                 var point = new Point(
                         Objects.requireNonNull(Identifier.tryParse(id)),
                         Objects.requireNonNull(Identifier.tryParse(world))
