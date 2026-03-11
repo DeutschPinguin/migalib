@@ -11,7 +11,7 @@ public class Context<C>
         public final @NotNull DataProvider data;
         public final C callback;
         
-        public boolean systemRemoved = false, sessionStopped = false;
+        public boolean removeListener = false, stopSession = false;
         
         
         public Context (@NotNull Event<C> event, @NotNull DataProvider data, C callback)

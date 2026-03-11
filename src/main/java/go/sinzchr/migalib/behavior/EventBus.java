@@ -38,8 +38,8 @@ public class EventBus
                         {
                                 var listener = iter.next();
                                 
-                                ctx.systemRemoved = false;
-                                ctx.sessionStopped = false;
+                                ctx.removeListener = false;
+                                ctx.stopSession = false;
                                 
                                 try
                                 {
@@ -51,8 +51,8 @@ public class EventBus
                                         MigaLib.LOGGER.error(e.getMessage(), e);
                                 }
                                 
-                                if (ctx.sessionStopped) stopped = true;
-                                if (ctx.systemRemoved) iter.remove();
+                                if (ctx.stopSession) stopped = true;
+                                if (ctx.removeListener) iter.remove();
                         }
                         
                         if (ctx.callback instanceof Cancellable cb && cb.isCancelled()) break;

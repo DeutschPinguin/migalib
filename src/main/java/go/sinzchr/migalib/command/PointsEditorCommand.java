@@ -225,7 +225,7 @@ public final class PointsEditorCommand
                 
                 var world = source.getWorld().getRegistryKey().getValue();
                 
-                var point = new Point(pointIdentifier, world, position.x, position.y, position.z, rotation.y, rotation.x);
+                var point = new Point(pointIdentifier, world, position.x, position.y, position.z, rotation.x, rotation.y);
                 container.add(point);
                 
                 source.sendFeedback(
@@ -383,7 +383,7 @@ public final class PointsEditorCommand
                 int lastPage = (size / 7) + 1;
                 if (page > lastPage) page = lastPage;
                 
-                int start = page * 7, end = Math.min(start + 7, size);
+                int start = (page - 1) * 7, end = Math.min(start + 7, size);
                 
                 var list = new ArrayList<>(collection);
                 MutableText text = textFor(container).append(" contains:");
@@ -538,38 +538,214 @@ public final class PointsEditorCommand
         }
         
         
-        public static <T extends ArgumentBuilder<ServerCommandSource, ?>> @NotNull T writePointsEditorTo (
-                @NotNull T root,
+        private static @NotNull CompletableFuture<Suggestions> getSuggestionsForContainers (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @NotNull SuggestionsBuilder builder
+        )
+        {
+                var state = state(ctx);
+                state.containers().keySet().forEach(id -> builder.suggest(id.toString()));
+                return builder.buildFuture();
+        }
+        
+        
+        private static @NotNull CompletableFuture<Suggestions> getSuggestionsForPoints (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @NotNull SuggestionsBuilder builder
+        )
+        {
+                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                var container = state(ctx).get(containerIdentifier);
+                if (container == null) return builder.buildFuture();
+                
+                container.points().keySet().forEach(id -> builder.suggest(id.toString()));
+                
+                return builder.buildFuture();
+        }
+        
+        
+        private static @NotNull CompletableFuture<Suggestions> getSuggestionsForTags (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @NotNull SuggestionsBuilder builder
+        )
+        {
+                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                var container = state(ctx).get(containerIdentifier);
+                if (container == null) return builder.buildFuture();
+                
+                var pointIdentifier = IdentifierArgumentType.getIdentifier(ctx, "point");
+                var point = container.get(pointIdentifier);
+                if (point == null) return builder.buildFuture();
+                
+                point.tags().forEach(id -> builder.suggest(id.toString()));
+                
+                return builder.buildFuture();
+        }
+        
+        
+        private static int containerChecker (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @Nullable Identifier container,
+                @NotNull Function<@NotNull Identifier, @NotNull Integer> func
+        )
+        {
+                if (container != null) return func.apply(container);
+                ctx.getSource().sendError(Text.literal("Select existing container first"));
+                return 0;
+        }
+        
+        
+        public static @NotNull ArgumentBuilder<ServerCommandSource, ?> writePointsEditorTo (
+                @NotNull ArgumentBuilder<ServerCommandSource, ?> root,
                 @NotNull Function<@NotNull CommandContext<ServerCommandSource>, @Nullable Identifier> containerGetter
         )
         {
-                
-                /*
-                
-                EDITOR
-                        add
-                                <point> EXEC
-                                        <pos> EXEC
-                                                <rot> EXEC
-                        move
-                                <point>
-                                        <pos> EXEC
-                                                <rot> EXEC
-                        delete
-                                <point> EXEC
-                        show
-                                <point> EXEC
-                        list EXEC
-                                <page> EXEC
-                        tag
-                                <point>
-                                        chech / add / delete
-                                                <tag> EXEC
-                                        list EXEC
+                return root
+                        .then(CommandManager.literal("add")
+                                .then(CommandManager.argument("point", IdentifierArgumentType.identifier())
+                                        .executes(ctx -> containerChecker(ctx,
+                                                containerGetter.apply(ctx),
+                                                cont -> addPoint(
+                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                        ctx.getSource().getPosition(),
+                                                        ctx.getSource().getRotation()
+                                                ))
+                                        )
+                                        .then(CommandManager.argument("position", Vec3ArgumentType.vec3())
+                                                .executes(ctx -> containerChecker(ctx,
+                                                        containerGetter.apply(ctx),
+                                                        cont -> addPoint(
+                                                                ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                Vec3ArgumentType.getVec3(ctx, "position"),
+                                                                ctx.getSource().getRotation()
+                                                        ))
+                                                )
+                                                .then(CommandManager.argument("rotation", Vec2ArgumentType.vec2())
+                                                        .executes(ctx -> containerChecker(ctx,
+                                                                containerGetter.apply(ctx),
+                                                                cont -> {
+                                                                var rot = Vec2ArgumentType.getVec2(ctx, "rotation");
+                                                                return addPoint(
+                                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                        Vec3ArgumentType.getVec3(ctx, "position"),
+                                                                        new Vec2f(rot.y, rot.x)
+                                                                );
+                                                        }))
+                                                )
+                                        )
+                                )
+                        )
                         
-                 */
-                
-                return root;
+                        .then(CommandManager.literal("move")
+                                .then(CommandManager.argument("point", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForPoints)
+                                        .then(CommandManager.argument("position", Vec3ArgumentType.vec3())
+                                                .executes(ctx -> containerChecker(ctx,
+                                                        containerGetter.apply(ctx),
+                                                        cont -> movePoint(
+                                                                ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                Vec3ArgumentType.getVec3(ctx, "position"),
+                                                                ctx.getSource().getRotation()
+                                                        ))
+                                                )
+                                                .then(CommandManager.argument("rotation", Vec2ArgumentType.vec2())
+                                                        .executes(ctx -> containerChecker(ctx,
+                                                                containerGetter.apply(ctx),
+                                                                cont -> {
+                                                                        var rot = Vec2ArgumentType.getVec2(ctx, "rotation");
+                                                                        return movePoint(
+                                                                                ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                                Vec3ArgumentType.getVec3(ctx, "position"),
+                                                                                new Vec2f(rot.y, rot.x)
+                                                                        );
+                                                                }))
+                                                )
+                                        )
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("delete")
+                                .then(CommandManager.argument("point", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForPoints)
+                                        .executes(ctx -> containerChecker(ctx,
+                                                containerGetter.apply(ctx),
+                                                cont -> deletePoint(
+                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point")
+                                                ))
+                                        )
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("show")
+                                .then(CommandManager.argument("point", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForPoints)
+                                        .executes(ctx -> containerChecker(ctx,
+                                                containerGetter.apply(ctx),
+                                                cont -> showPoint(
+                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point")
+                                                ))
+                                        )
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("list")
+                                .executes(ctx -> containerChecker(ctx,
+                                        containerGetter.apply(ctx),
+                                        cont -> listPoints(
+                                                ctx, cont, 1
+                                        ))
+                                )
+                                .then(CommandManager.argument("page", IntegerArgumentType.integer(1))
+                                        
+                                        .executes(ctx -> containerChecker(ctx,
+                                                containerGetter.apply(ctx),
+                                                cont -> listPoints(
+                                                        ctx, cont, ctx.getArgument("page", Integer.class)
+                                                ))
+                                        )
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("tag")
+                                .then(CommandManager.argument("point", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForPoints)
+                                        .then(CommandManager.literal("add")
+                                                .then(CommandManager.argument("tag", IdentifierArgumentType.identifier())
+                                                        .executes(ctx -> containerChecker(ctx,
+                                                                containerGetter.apply(ctx),
+                                                                cont -> tagPoint(
+                                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                        IdentifierArgumentType.getIdentifier(ctx, "tag")
+                                                                )
+                                                        ))
+                                                )
+                                        )
+                                        .then(CommandManager.literal("delete")
+                                                .then(CommandManager.argument("tag", IdentifierArgumentType.identifier())
+                                                        .suggests(PointsEditorCommand::getSuggestionsForTags)
+                                                        .executes(ctx -> containerChecker(ctx,
+                                                                containerGetter.apply(ctx),
+                                                                cont -> untagPoint(
+                                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                        IdentifierArgumentType.getIdentifier(ctx, "tag")
+                                                                )
+                                                        ))
+                                                )
+                                        )
+                                        .then(CommandManager.literal("check")
+                                                .then(CommandManager.argument("tag", IdentifierArgumentType.identifier())
+                                                        .suggests(PointsEditorCommand::getSuggestionsForTags)
+                                                        .executes(ctx -> containerChecker(ctx,
+                                                                containerGetter.apply(ctx),
+                                                                cont -> checkTagPoint(
+                                                                        ctx, cont, IdentifierArgumentType.getIdentifier(ctx, "point"),
+                                                                        IdentifierArgumentType.getIdentifier(ctx, "tag")
+                                                                )
+                                                        ))
+                                                )
+                                        )
+                                )
+                        );
         }
         
         
@@ -578,7 +754,8 @@ public final class PointsEditorCommand
                 return CommandManager.literal(name)
                         .then(CommandManager.literal("modify")
                                 .then(writePointsEditorTo(
-                                        CommandManager.argument("container", IdentifierArgumentType.identifier()),
+                                        CommandManager.argument("container", IdentifierArgumentType.identifier())
+                                                .suggests(PointsEditorCommand::getSuggestionsForContainers),
                                         ctx -> IdentifierArgumentType.getIdentifier(ctx, "container")
                                 ))
                         );
@@ -587,7 +764,7 @@ public final class PointsEditorCommand
         
         public static @NotNull LiteralArgumentBuilder<ServerCommandSource> createPoints (@NotNull String name)
         {
-                return writePointsEditorTo(CommandManager.literal(name), ctx ->
+                return (LiteralArgumentBuilder<ServerCommandSource>) writePointsEditorTo(CommandManager.literal(name), ctx ->
                 {
                         var player = ctx.getSource().getPlayer();
                         return player == null ? null : getSelectedContainer(player.getUuid());
@@ -602,265 +779,7 @@ public final class PointsEditorCommand
                 );
                 
                 dispatcher.register(createPoints("migalib:point")
-                        .requires(source -> source.hasPermissionLevel(4))
-                );
-        }
-        
-        
-        
-        
-        private static final Function<CommandContext<ServerCommandSource>, PointsPersistentState>
-                loader = ctx ->
-        {
-                var world = ctx.getSource().getServer().getWorld(World.OVERWORLD);
-                return PointsPersistentState.load(Objects.requireNonNull(world));
-        };
-        
-        
-        public static @NotNull CompletableFuture<Suggestions> containersSuggestions (
-                @NotNull CommandContext<ServerCommandSource> ctx,
-                @NotNull SuggestionsBuilder builder
-        )
-        {
-                var state = loader.apply(ctx);
-                state.containers().keySet().forEach(id -> builder.suggest(id.toString()));
-                return builder.buildFuture();
-        }
-        
-        
-        public static @NotNull CompletableFuture<Suggestions> pointsSuggestions (
-                @NotNull CommandContext<ServerCommandSource> ctx,
-                @NotNull SuggestionsBuilder builder
-        )
-        {
-                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
-                var container = loader.apply(ctx).get(containerIdentifier);
-                if (container == null) return builder.buildFuture();
-                container.points().keySet().forEach(id -> builder.suggest(id.toString()));
-                return builder.buildFuture();
-        }
-        
-        
-        private static int edit (
-                @NotNull CommandContext<ServerCommandSource> ctx,
-                @NotNull Function<@NotNull PointsContainer, Integer> function
-        )
-        {
-                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
-                var state = loader.apply(ctx);
-                var source = ctx.getSource();
-                
-                var container = state.get(containerIdentifier);
-                if (container == null)
-                {
-                        container = new PointsContainer(containerIdentifier);
-                        state.add(container);
-                        var txt = String.format("Created new container [%s]", containerIdentifier);
-                        source.sendFeedback(() -> Text.literal(txt), true);
-                }
-                
-                var result = function.apply(container);
-                state.markDirty();
-                
-                return result;
-        }
-        
-        
-        private static int addPoint (
-                @NotNull CommandContext<ServerCommandSource> ctx,
-                @NotNull Vec3d pos,
-                @NotNull Vec2f rot
-        )
-        {
-                return edit(ctx, container -> {
-                        var pointIdentifier = IdentifierArgumentType.getIdentifier(ctx, "point");
-                        var source = ctx.getSource();
-                        var world = source.getWorld();
-                        
-                        if (container.has(pointIdentifier))
-                        {
-                                var txt = String.format("Container [%s] already has point [%s]", container.id(), pointIdentifier);
-                                source.sendError(Text.literal(txt));
-                                return 0;
-                        }
-                        
-                        var worldIdentifier = world.getRegistryKey().getValue();
-                        var point = new Point(pointIdentifier, worldIdentifier, pos.x, pos.y, pos.z, rot.y, rot.x);
-                        container.add(point);
-                        
-                        source.sendFeedback(
-                                () -> {
-                                        var p = Text.literal("Added point ")
-                                                .append(Text.literal(String.format("[%s]", point.id())).formatted(Formatting.GREEN))
-                                                .setStyle(Style.EMPTY.withHoverEvent(
-                                                        new HoverEvent(HoverEvent.Action.SHOW_TEXT, textInfo(point, container.id())))
-                                                );
-                                        return Text.literal("")
-                                                .append(p)
-                                                .append(" to container ").append(Text.literal(String.format("[%s]", container.id())).formatted(Formatting.AQUA));
-                                },
-                                true
-                        );
-                        
-                        return 1;
-                });
-        }
-        
-        
-        public static @NotNull MutableText textTeleport (@NotNull Point point)
-        {
-                double x = point.x(), y = point.y(), z = point.z();
-                float rp = point.pitch(), ry = point.yaw();
-                var world = point.world();
-                
-                var cmd = String.format("/execute in %s run tp @s %f %f %f %f %f", world, x, y, z, rp, ry);
-                
-                return Text.literal("<TELEPORT>")
-                        .setStyle(Style.EMPTY
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, cmd))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal(cmd).formatted(Formatting.GRAY)))
-                        )
-                        .formatted(Formatting.AQUA, Formatting.UNDERLINE);
-        }
-        
-        
-        public static @NotNull MutableText textInfo (@NotNull Point point, @Nullable Identifier container)
-        {
-                var id = Text.literal(String.format("[%s]", point.id())).formatted(Formatting.GREEN);
-                
-                var cont = container == null ? Text.empty()
-                        : Text.literal(String.format("[%s]", container)).formatted(Formatting.AQUA);
-                
-                var world = Text.literal(String.format("[%s]", point.world())).formatted(Formatting.WHITE);
-                var pos = Text.literal(String.format("(%f, %f, %f)", point.x(), point.y(), point.z())).formatted(Formatting.WHITE);
-                var rot = Text.literal(String.format("(%f, %f)", point.pitch(), point.yaw())).formatted(Formatting.WHITE);
-                
-                return Text.empty()
-                        .append(Text.literal("Point ").append(id).formatted(Formatting.WHITE))
-                        .append(Text.literal("\n - container ").formatted(Formatting.GRAY).append(cont))
-                        .append(Text.literal("\n - dimension ").formatted(Formatting.GRAY).append(world))
-                        .append(Text.literal("\n - position ").formatted(Formatting.GRAY).append(pos))
-                        .append(Text.literal("\n - rotation ").formatted(Formatting.GRAY).append(rot));
-        }
-        
-        
-        public static @NotNull LiteralArgumentBuilder<ServerCommandSource> create (@NotNull String name)
-        {
-                var showSubTree = CommandManager.literal("show").then(CommandManager.argument("point", IdentifierArgumentType.identifier())
-                        .suggests(PointsEditorCommand::pointsSuggestions)
-                        .executes(ctx -> edit(ctx, container -> {
-                                var pointIdentifier = IdentifierArgumentType.getIdentifier(ctx, "point");
-                                var point = container.get(pointIdentifier);
-                                
-                                if (point == null)
-                                {
-                                        var txt = String.format("Container [%s] doesn't has point [%s]", container.id(), pointIdentifier);
-                                        ctx.getSource().sendError(Text.literal(txt));
-                                        return 0;
-                                }
-                                
-                                ctx.getSource().sendFeedback(
-                                        () -> textInfo(point, container.id()).append(Text.empty()).append("\n > ").formatted(Formatting.GRAY).append(textTeleport(point)),
-                                        false
-                                );
-                                
-                                return 1;
-                        }))
-                );
-                
-                
-                var listSubTree = CommandManager.literal("list")
-                        .executes(ctx -> {
-                                MigaLib.LOGGER.info("listing");
-                                return 0;
-                        })
-                        
-                        .then(CommandManager.argument("page", IntegerArgumentType.integer(1))
-                                .executes(ctx -> {
-                                        MigaLib.LOGGER.info("listing page");
-                                        return 0;
-                                })
-                        );
-                
-                
-                var moveSubTree = CommandManager.literal("move").then(CommandManager.argument("point", IdentifierArgumentType.identifier())
-                        .suggests(PointsEditorCommand::pointsSuggestions)
-                        .then(CommandManager.argument("pos", Vec3ArgumentType.vec3())
-                                .executes(ctx -> {
-                                        MigaLib.LOGGER.info("moving point");
-                                        return 0;
-                                })
-                        )
-                );
-                
-                
-                var addSubTree = CommandManager.literal("add").then(CommandManager.argument("point", IdentifierArgumentType.identifier())
-                        .executes(ctx -> addPoint(
-                                ctx,
-                                ctx.getSource().getPosition(),
-                                ctx.getSource().getRotation()
-                        ))
-                        
-                        .then(CommandManager.argument("pos", Vec3ArgumentType.vec3())
-                                .executes(ctx -> addPoint(
-                                        ctx,
-                                        Vec3ArgumentType.getVec3(ctx, "pos"),
-                                        ctx.getSource().getRotation()
-                                ))
-                                
-                                .then(CommandManager.argument("rot", Vec2ArgumentType.vec2())
-                                        .executes(ctx -> addPoint(
-                                                ctx,
-                                                Vec3ArgumentType.getVec3(ctx, "pos"),
-                                                Vec2ArgumentType.getVec2(ctx, "rot")
-                                        ))
-                                )
-                        )
-                );
-                
-                
-                var removeSubTree = CommandManager.literal("remove").then(CommandManager.argument("point", IdentifierArgumentType.identifier())
-                        .suggests(PointsEditorCommand::pointsSuggestions)
-                        .executes(ctx -> edit(ctx, container -> {
-                                var pointIdentifier = IdentifierArgumentType.getIdentifier(ctx, "point");
-                                var point = container.get(pointIdentifier);
-                                
-                                if (point == null)
-                                {
-                                        var txt = String.format("Container [%s] doesn't has point [%s]", container.id(), pointIdentifier);
-                                        ctx.getSource().sendError(Text.literal(txt));
-                                        return 0;
-                                }
-                                
-                                container.remove(point);
-                                
-                                ctx.getSource().sendFeedback(
-                                        () -> {
-                                                var p = Text.literal("Removed point ")
-                                                        .append(Text.literal(String.format("[%s]", point.id())).formatted(Formatting.GREEN))
-                                                        .setStyle(Style.EMPTY.withHoverEvent(
-                                                                new HoverEvent(HoverEvent.Action.SHOW_TEXT, textInfo(point, container.id())))
-                                                        );
-                                                return Text.literal("")
-                                                        .append(p)
-                                                        .append(" from container ").append(Text.literal(String.format("[%s]", container.id())).formatted(Formatting.AQUA));
-                                        },
-                                        true
-                                );
-                                
-                                return 1;
-                        }))
-                );
-                
-                
-                return CommandManager.literal(name).then(CommandManager.argument("container", IdentifierArgumentType.identifier())
-                                .suggests(PointsEditorCommand::containersSuggestions)
-                                .then(showSubTree)
-                                .then(listSubTree)
-                                .then(moveSubTree)
-                                .then(addSubTree)
-                                .then(removeSubTree)
-                );
+                        .requires(source -> source.hasPermissionLevel(4)));
         }
         
 }
