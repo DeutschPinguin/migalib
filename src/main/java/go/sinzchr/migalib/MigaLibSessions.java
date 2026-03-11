@@ -19,19 +19,50 @@ public final class MigaLibSessions
         private MigaLibSessions () {}
         
         
-        public static <C> void emit (@NotNull Context<C> ctx)
+        public static <C> void start (
+                @NotNull BiPredicate<@NotNull Event<C>, C> shouldHandleEvent,
+                @NotNull GameSession session
+        )
         {
-                SESSIONS.forEach((session, predicate) -> {
-                        if (predicate.test(ctx.event, ctx.callback)) session.emit(ctx);
-                });
+                if (has(session)) return;
+                add(session);
+                session.start();
+        }
+        
+        
+        public static void stop (@NotNull GameSession session)
+        {
+                if (!has(session)) return;
+                remove(session);
+                session.stop();
         }
         
         
         public static <C> void emit (@NotNull Event<C> event, C callback)
         {
-                SESSIONS.forEach((session, predicate) -> {
-                        if (predicate.test(event, callback)) session.emit(event, callback);
-                });
+                var iter = SESSIONS.keySet().iterator();
+                
+                while (iter.hasNext())
+                {
+                        var session = iter.next();
+                        
+                        var predicate = SESSIONS.get(session);
+                        if (!predicate.test(event, callback)) continue;
+                        
+                        session.emit(event, callback);
+                        
+                        if (session.stopped)
+                        {
+                                iter.remove();
+                                session.stop();
+                        }
+                }
+        }
+        
+        
+        public static <C> void emit (@NotNull Context<C> ctx)
+        {
+                emit(ctx.event, ctx.callback);
         }
         
         

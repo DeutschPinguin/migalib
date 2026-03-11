@@ -18,6 +18,8 @@ public class EventBus
         protected final Map<Listener, Priority> PRIORITIES = new HashMap<>();
         protected final Map<Priority, List<Listener>> LISTENERS = new HashMap<>();
         
+        public boolean stopped = false;
+        
         
         public EventBus ()
         {
@@ -30,15 +32,27 @@ public class EventBus
         {
                 for (var priority : Priority.ALL_SORTED)
                 {
-                        for (var listener : LISTENERS.get(priority))
+                        var iter = LISTENERS.get(priority).iterator();
+                        
+                        while (iter.hasNext())
                         {
-                                try {
+                                var listener = iter.next();
+                                
+                                ctx.systemRemoved = false;
+                                ctx.sessionStopped = false;
+                                
+                                try
+                                {
                                         listener.emit(ctx);
-                                } catch (Exception e)
+                                }
+                                catch (Exception e)
                                 {
                                         MigaLib.LOGGER.error("Listener caught unexpected error when {} was emitted", ctx.event);
                                         MigaLib.LOGGER.error(e.getMessage(), e);
                                 }
+                                
+                                if (ctx.sessionStopped) stopped = true;
+                                if (ctx.systemRemoved) iter.remove();
                         }
                         
                         if (ctx.callback instanceof Cancellable cb && cb.isCancelled()) break;

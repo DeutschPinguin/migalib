@@ -19,7 +19,6 @@ public class MutPoint
         extends Point
 {
         
-        
         public MutPoint (@NotNull Identifier id, @NotNull Identifier world, double x, double y, double z, float pitch, float yaw)
         {
                 super(id, world, x, y, z, pitch, yaw);
@@ -81,15 +80,7 @@ public class MutPoint
         }
         
         
-        @Override
         public @Nullable NbtCompound metadata (@NotNull Identifier modId)
-        {
-                return METADATA.get(modId);
-        }
-        
-        
-        @Override
-        public @NotNull Map<@NotNull Identifier, @NotNull NbtCompound> allMetadata ()
         {
                 return METADATA;
         }

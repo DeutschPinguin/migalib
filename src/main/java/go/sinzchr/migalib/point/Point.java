@@ -24,7 +24,7 @@ public class Point
         protected final int hash;
         
         protected final @NotNull Set<@NotNull Identifier> TAGS = new HashSet<>();
-        protected final @NotNull Map<@NotNull Identifier, @NotNull NbtCompound> METADATA = new HashMap<>();
+        protected @NotNull NbtCompound METADATA = new NbtCompound();
         
         protected @NotNull Identifier WORLD;
         protected double x, y, z;
@@ -63,7 +63,7 @@ public class Point
                 point.pitch = pitch;
                 point.yaw = yaw;
                 point.TAGS.addAll(TAGS);
-                point.METADATA.putAll(METADATA);
+                point.METADATA = METADATA.copy();
                 return point;
         }
         
@@ -90,10 +90,7 @@ public class Point
                 for (var id : TAGS) tags.add(NbtString.of(id.toString()));
                 nbt.put("tags", tags);
                 
-                var metadata = new NbtCompound();
-                METADATA.forEach((id, data) -> metadata.put(id.toString(), data));
-                nbt.put("metadata", metadata);
-                
+                nbt.put("metadata", METADATA);
                 nbt.put("position", MigaLibUtils.serialize(x, y, z));
                 nbt.put("rotation", MigaLibUtils.serialize(pitch, yaw));
                 
@@ -115,14 +112,7 @@ public class Point
                         if (tag != null) point.TAGS.add(tag);
                 });
                 
-                var metadataCompound = nbt.getCompound("metadata");
-                for (var key : metadataCompound.getKeys())
-                {
-                        var modId = Identifier.tryParse(key);
-                        if (modId == null) continue;
-                        var compound = metadataCompound.getCompound(key);
-                        point.METADATA.put(modId, compound);
-                }
+                point.METADATA = nbt.getCompound("metadata");
                 
                 var pos = MigaLibUtils.positionFrom(nbt.getList("position", NbtElement.DOUBLE_TYPE));
                 point.x = pos[0];
@@ -155,29 +145,9 @@ public class Point
         }
         
         
-        public boolean hasMetadata (@NotNull Identifier modId)
+        public @Nullable NbtCompound copyMetadata ()
         {
-                return METADATA.containsKey(modId);
-        }
-        
-        
-        public @Nullable NbtCompound metadata (@NotNull Identifier modId)
-        {
-                var compound = METADATA.get(modId);
-                if (compound == null) return null;
-                return compound.copy();
-        }
-        
-        
-        public @NotNull Map<@NotNull Identifier, @NotNull NbtCompound> allMetadata ()
-        {
-                return Collections.unmodifiableMap(METADATA);
-        }
-        
-        
-        public @NotNull Map<@NotNull Identifier, @NotNull NbtCompound> copyAllMetadata ()
-        {
-                return new HashMap<>(METADATA);
+                return METADATA.copy();
         }
         
         

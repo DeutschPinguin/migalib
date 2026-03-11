@@ -1,6 +1,8 @@
 package go.sinzchr.migalib.command;
 
+import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -27,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 
 public final class PointsEditorCommand
@@ -91,7 +94,7 @@ public final class PointsEditorCommand
                 return Text.literal("Container ")
                         .append(Text.literal(String.format("[%s]", container)).formatted(Formatting.AQUA))
                         .append(" does not contain ")
-                        .append(Text.literal(String.format("[%s}", point)).formatted(Formatting.GREEN));
+                        .append(Text.literal(String.format("[%s]", point)).formatted(Formatting.GREEN));
         }
         
         
@@ -100,7 +103,33 @@ public final class PointsEditorCommand
                 return Text.literal("Container ")
                         .append(Text.literal(String.format("[%s]", container)).formatted(Formatting.AQUA))
                         .append(" already contains ")
-                        .append(Text.literal(String.format("[%s}", point)).formatted(Formatting.GREEN));
+                        .append(Text.literal(String.format("[%s]", point)).formatted(Formatting.GREEN));
+        }
+        
+        
+        private static @NotNull MutableText errorAlreadyHasTag (@NotNull Identifier point, @NotNull Identifier tag)
+        {
+                return Text.literal("Point ")
+                        .append(Text.literal(String.format("[%s]", point)).formatted(Formatting.GREEN))
+                        .append(" already has tag ")
+                        .append(Text.literal(String.format("[%s]", tag)).formatted(Formatting.GREEN));
+        }
+        
+        
+        private static @NotNull MutableText errorDoesNotTaggedWith (@NotNull Identifier point, @NotNull Identifier tag)
+        {
+                return Text.literal("Point ")
+                        .append(Text.literal(String.format("[%s]", point)).formatted(Formatting.GREEN))
+                        .append(" does not tagged with ")
+                        .append(Text.literal(String.format("[%s]", tag)).formatted(Formatting.GREEN));
+        }
+        
+        
+        private static @NotNull MutableText errorHasNoTags (@NotNull Identifier point, @NotNull Identifier tag)
+        {
+                return Text.literal("Point ")
+                        .append(Text.literal(String.format("[%s]", point)).formatted(Formatting.GREEN))
+                        .append(" does not has any tags ");
         }
         
         
@@ -370,6 +399,212 @@ public final class PointsEditorCommand
                 return size;
         }
         
+        
+        private static int tagPoint (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @NotNull Identifier containerIdentifier,
+                @NotNull Identifier pointIdentifier,
+                @NotNull Identifier tag
+        )
+        {
+                var source = ctx.getSource();
+                var state = state(ctx);
+                var container = state.get(containerIdentifier);
+                
+                if (container == null)
+                {
+                        source.sendError(errorNotFoundContainer(containerIdentifier));
+                        return -1;
+                }
+                
+                var point = container.get(pointIdentifier);
+                
+                if (point == null)
+                {
+                        source.sendError(errorNotFoundPoint(containerIdentifier, pointIdentifier));
+                        return -2;
+                }
+                
+                if (point.hasTag(tag))
+                {
+                        source.sendError(errorAlreadyHasTag(pointIdentifier, tag));
+                        return -3;
+                }
+                
+                var mut = point.toMutablePoint();
+                mut.tag(tag);
+                container.set(mut.toPoint());
+                
+                source.sendFeedback(
+                        () -> Text.literal("Tagged ")
+                                .append(styledTextFor(mut, container))
+                                .append(" with ")
+                                .append(Text.literal(String.format("<%s>", tag)).formatted(Formatting.BLUE)),
+                        true
+                );
+                
+                state.markDirty();
+                return 1;
+        }
+        
+        
+        private static int untagPoint (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @NotNull Identifier containerIdentifier,
+                @NotNull Identifier pointIdentifier,
+                @NotNull Identifier tag
+        )
+        {
+                var source = ctx.getSource();
+                var state = state(ctx);
+                var container = state.get(containerIdentifier);
+                
+                if (container == null)
+                {
+                        source.sendError(errorNotFoundContainer(containerIdentifier));
+                        return -1;
+                }
+                
+                var point = container.get(pointIdentifier);
+                
+                if (point == null)
+                {
+                        source.sendError(errorNotFoundPoint(containerIdentifier, pointIdentifier));
+                        return -2;
+                }
+                
+                if (!point.hasTag(tag))
+                {
+                        source.sendError(errorDoesNotTaggedWith(pointIdentifier, tag));
+                        return -3;
+                }
+                
+                var mut = point.toMutablePoint();
+                mut.untag(tag);
+                container.set(mut.toPoint());
+                
+                source.sendFeedback(
+                        () -> Text.literal("Removed tag ")
+                                .append(Text.literal(String.format("<%s>", tag)).formatted(Formatting.BLUE))
+                                .append(" from ")
+                                .append(styledTextFor(mut, container)),
+                        true
+                );
+                
+                state.markDirty();
+                return 1;
+        }
+        
+        
+        private static int checkTagPoint (
+                @NotNull CommandContext<ServerCommandSource> ctx,
+                @NotNull Identifier containerIdentifier,
+                @NotNull Identifier pointIdentifier,
+                @NotNull Identifier tag
+        )
+        {
+                var source = ctx.getSource();
+                var state = state(ctx);
+                var container = state.get(containerIdentifier);
+                
+                if (container == null)
+                {
+                        source.sendError(errorNotFoundContainer(containerIdentifier));
+                        return -1;
+                }
+                
+                var point = container.get(pointIdentifier);
+                
+                if (point == null)
+                {
+                        source.sendError(errorNotFoundPoint(containerIdentifier, pointIdentifier));
+                        return -2;
+                }
+                
+                if (!point.hasTag(tag))
+                {
+                        source.sendError(errorDoesNotTaggedWith(pointIdentifier, tag));
+                        return 0;
+                }
+                
+                source.sendFeedback(
+                        () -> styledTextFor(point, container)
+                                .append(" is tagged with ")
+                                .append(Text.literal(String.format("<%s>", tag)).formatted(Formatting.BLUE)),
+                        true
+                );
+                
+                return 1;
+        }
+        
+        
+        public static <T extends ArgumentBuilder<ServerCommandSource, ?>> @NotNull T writePointsEditorTo (
+                @NotNull T root,
+                @NotNull Function<@NotNull CommandContext<ServerCommandSource>, @Nullable Identifier> containerGetter
+        )
+        {
+                
+                /*
+                
+                EDITOR
+                        add
+                                <point> EXEC
+                                        <pos> EXEC
+                                                <rot> EXEC
+                        move
+                                <point>
+                                        <pos> EXEC
+                                                <rot> EXEC
+                        delete
+                                <point> EXEC
+                        show
+                                <point> EXEC
+                        list EXEC
+                                <page> EXEC
+                        tag
+                                <point>
+                                        chech / add / delete
+                                                <tag> EXEC
+                                        list EXEC
+                        
+                 */
+                
+                return root;
+        }
+        
+        
+        public static @NotNull LiteralArgumentBuilder<ServerCommandSource> createContainers (@NotNull String name)
+        {
+                return CommandManager.literal(name)
+                        .then(CommandManager.literal("modify")
+                                .then(writePointsEditorTo(
+                                        CommandManager.argument("container", IdentifierArgumentType.identifier()),
+                                        ctx -> IdentifierArgumentType.getIdentifier(ctx, "container")
+                                ))
+                        );
+        }
+        
+        
+        public static @NotNull LiteralArgumentBuilder<ServerCommandSource> createPoints (@NotNull String name)
+        {
+                return writePointsEditorTo(CommandManager.literal(name), ctx ->
+                {
+                        var player = ctx.getSource().getPlayer();
+                        return player == null ? null : getSelectedContainer(player.getUuid());
+                });
+        }
+        
+        
+        public static void registerBoth (@NotNull CommandDispatcher<ServerCommandSource> dispatcher)
+        {
+                dispatcher.register(createContainers("migalib:container")
+                        .requires(source -> source.hasPermissionLevel(4))
+                );
+                
+                dispatcher.register(createPoints("migalib:point")
+                        .requires(source -> source.hasPermissionLevel(4))
+                );
+        }
         
         
         
