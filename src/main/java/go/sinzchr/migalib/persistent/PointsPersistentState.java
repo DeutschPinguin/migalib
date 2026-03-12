@@ -77,9 +77,9 @@ public class PointsPersistentState
         }
         
         
-        public void remove (@NotNull Point point)
+        public void remove (@NotNull PointsContainer container)
         {
-                remove(point.id());
+                remove(container.id());
         }
         
         

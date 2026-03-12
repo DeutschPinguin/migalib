@@ -73,11 +73,25 @@ public final class PointsEditorCommand
         }
         
         
+        private static @NotNull MutableText errorForPlayersOnly ()
+        {
+                return Text.literal("This command is for players only");
+        }
+        
+        
         private static @NotNull MutableText errorNotFoundContainer (@NotNull Identifier container)
         {
                 return Text.literal("Container ")
                         .append(Text.literal(String.format("[%s]", container)).formatted(Formatting.AQUA))
                         .append(" not found");
+        }
+        
+        
+        private static @NotNull MutableText errorAlreadyExistsContainer (@NotNull Identifier container)
+        {
+                return Text.literal("Container ")
+                        .append(Text.literal(String.format("[%s]", container)).formatted(Formatting.AQUA))
+                        .append(" already exists");
         }
         
         
@@ -144,11 +158,10 @@ public final class PointsEditorCommand
         private static @NotNull MutableText textWithDataFrom (@NotNull Point point)
         {
                 return Text.empty()
-                        .append(Text.literal(String.format("[%s]", point.world())).formatted(Formatting.GREEN))
-                        .append(" ")
-                        .append(Text.literal(String.format("(%f %f %f)", point.x(), point.y(), point.z())).formatted(Formatting.WHITE))
-                        .append(" ")
-                        .append(Text.literal(String.format("(pitch %f, yaw %f)", point.pitch(), point.yaw())).formatted(Formatting.WHITE));
+                        .append(textFor(point))
+                        .append(Text.literal(String.format("\n[%s]", point.world())).formatted(Formatting.GREEN))
+                        .append(Text.literal(String.format("\n(%f %f %f)", point.x(), point.y(), point.z())).formatted(Formatting.WHITE))
+                        .append(Text.literal(String.format("\n(pitch %f, yaw %f)", point.pitch(), point.yaw())).formatted(Formatting.WHITE));
         }
         
         
@@ -157,25 +170,28 @@ public final class PointsEditorCommand
                 return Text.empty()
                         .append(textWithDataFrom(point))
                         .append(Text.literal("\n Contained in ").formatted(Formatting.GRAY))
-                        .append(Text.literal(String.format("[%s", container.id())).formatted(Formatting.AQUA));
+                        .append(Text.literal(String.format("[%s]", container.id())).formatted(Formatting.AQUA));
+        }
+        
+        
+        private static @NotNull Style styleFor (@NotNull Point point, @NotNull Text hoverText)
+        {
+                var cmd = String.format("/execute in %s run tp @s %f %f %f %f %f", point.world(), point.x(), point.y(), point.z(), point.yaw(), point.pitch());
+                return Style.EMPTY
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hoverText))
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, cmd));
         }
         
         
         private static @NotNull Style styleFor (@NotNull Point point)
         {
-                var cmd = String.format("/execute in %s run tp @s %f %f %f %f %f", point.world(), point.x(), point.y(), point.z(), point.yaw(), point.pitch());
-                return Style.EMPTY
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, textWithDataFrom(point)))
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, cmd));
+                return styleFor(point, textWithDataFrom(point));
         }
         
         
         private static @NotNull Style styleFor (@NotNull Point point, @NotNull PointsContainer container)
         {
-                var cmd = String.format("/execute in %s run tp @s %f %f %f %f %f", point.world(), point.x(), point.y(), point.z(), point.yaw(), point.pitch());
-                return Style.EMPTY
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, textWithDataFrom(point, container)))
-                        .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, cmd));
+                return styleFor(point, textWithDataFrom(point, container));
         }
         
         
@@ -196,6 +212,46 @@ public final class PointsEditorCommand
         private static @NotNull MutableText styledTextFor (@NotNull Point point, @NotNull PointsContainer container)
         {
                 return textFor(point).fillStyle(styleFor(point, container));
+        }
+        
+        
+        private static int listContainers (@NotNull CommandContext<ServerCommandSource> ctx, int page)
+        {
+                var source = ctx.getSource();
+                
+                if (page < 1)
+                {
+                        source.sendError(Text.literal("Page ordinal must be positive"));
+                        return -1;
+                }
+                
+                var state = state(ctx);
+                var collection = state.containers().values();
+                var size = collection.size();
+                
+                if (size < 1)
+                {
+                        source.sendError(Text.literal("No containers exist in this level"));
+                        return -2;
+                }
+                
+                int lastPage = (size / 7) + 1;
+                if (page > lastPage) page = lastPage;
+                
+                int start = (page - 1) * 7, end = Math.min(start + 7, size);
+                
+                var list = new ArrayList<>(collection);
+                MutableText text = Text.literal("Existing containers:");
+                
+                for (int i = start; i < end; i++)
+                {
+                        var container = list.get(i);
+                        text = text.append("\n - ").append(textFor(container));
+                }
+                
+                source.sendMessage(text);
+                
+                return size;
         }
         
         
@@ -554,7 +610,19 @@ public final class PointsEditorCommand
                 @NotNull SuggestionsBuilder builder
         )
         {
-                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                Identifier containerIdentifier;
+                try
+                {
+                        containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                }
+                catch (IllegalArgumentException e)
+                {
+                        var player = ctx.getSource().getPlayer();
+                        if (player == null) return builder.buildFuture();
+                        containerIdentifier = getSelectedContainer(player.getUuid());
+                        if (containerIdentifier == null) return builder.buildFuture();
+                }
+                
                 var container = state(ctx).get(containerIdentifier);
                 if (container == null) return builder.buildFuture();
                 
@@ -752,7 +820,121 @@ public final class PointsEditorCommand
         public static @NotNull LiteralArgumentBuilder<ServerCommandSource> createContainers (@NotNull String name)
         {
                 return CommandManager.literal(name)
-                        .then(CommandManager.literal("modify")
+                        .then(CommandManager.literal("add")
+                                .then(CommandManager.argument("container", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForContainers)
+                                        .executes(ctx -> {
+                                                var state = state(ctx);
+                                                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                                                var container = state.get(containerIdentifier);
+                                                
+                                                if (container != null)
+                                                {
+                                                        ctx.getSource().sendError(errorAlreadyExistsContainer(containerIdentifier));
+                                                        return -1;
+                                                }
+                                                
+                                                container = new PointsContainer(containerIdentifier);
+                                                state.add(container);
+                                                
+                                                ctx.getSource().sendMessage(
+                                                        Text.literal("Created ")
+                                                                .append(textFor(container))
+                                                );
+                                                
+                                                state.markDirty();
+                                                return 1;
+                                        })
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("delete")
+                                .then(CommandManager.argument("container", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForContainers)
+                                        .executes(ctx -> {
+                                                var state = state(ctx);
+                                                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                                                var container = state.get(containerIdentifier);
+                                                
+                                                if (container == null)
+                                                {
+                                                        ctx.getSource().sendError(errorNotFoundContainer(containerIdentifier));
+                                                        return -1;
+                                                }
+                                                
+                                                state.remove(container);
+                                                
+                                                ctx.getSource().sendMessage(
+                                                        Text.literal("Deleted ")
+                                                                .append(textFor(container))
+                                                );
+                                                
+                                                CONTAINER_SELECTED.forEach((uuid, id) -> {
+                                                        var player = ctx.getSource().getServer().getPlayerManager().getPlayer(uuid);
+                                                        if (player == null) return;
+                                                        
+                                                        var selected = getSelectedContainer(player.getUuid());
+                                                        if (selected == null || !selected.equals(containerIdentifier)) return;
+                                                        
+                                                        unselectContainer(player.getUuid());
+                                                        
+                                                        player.sendMessage(
+                                                                Text.literal("Selected container was deleted")
+                                                                        .formatted(Formatting.YELLOW)
+                                                        );
+                                                });
+                                                
+                                                state.markDirty();
+                                                return 1;
+                                        })
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("checkout")
+                                .then(CommandManager.argument("container", IdentifierArgumentType.identifier())
+                                        .suggests(PointsEditorCommand::getSuggestionsForContainers)
+                                        .executes(ctx -> {
+                                                var player = ctx.getSource().getPlayer();
+                                                
+                                                if (player == null)
+                                                {
+                                                        ctx.getSource().sendError(errorForPlayersOnly());
+                                                        return -1;
+                                                }
+                                                
+                                                var state = state(ctx);
+                                                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                                                var container = state.get(containerIdentifier);
+                                                
+                                                if (container == null)
+                                                {
+                                                        ctx.getSource().sendError(errorNotFoundContainer(containerIdentifier));
+                                                        return -2;
+                                                }
+                                                
+                                                selectContainer(player.getUuid(), containerIdentifier);
+                                                
+                                                ctx.getSource().sendMessage(
+                                                        Text.literal("Selected ")
+                                                                .append(textFor(container))
+                                                                .append(" for modification (/migalib:point)")
+                                                );
+                                                
+                                                return 1;
+                                        })
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("list")
+                                .executes(ctx -> listContainers(ctx, 1))
+                                .then(CommandManager.argument("page", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> listContainers(
+                                                ctx, ctx.getArgument("page", Integer.class)
+                                        ))
+                                )
+                        )
+                        
+                        .then(CommandManager.literal("in")
                                 .then(writePointsEditorTo(
                                         CommandManager.argument("container", IdentifierArgumentType.identifier())
                                                 .suggests(PointsEditorCommand::getSuggestionsForContainers),
