@@ -12,8 +12,8 @@ public class GameSession
         implements Listener
 {
         
-        public final @NotNull EventBus eventBus = new EventBus();
         public final @NotNull DataContainer dataContainer = new DataContainer();
+        public final @NotNull EventBus eventBus = new EventBus(dataContainer);
         
         public boolean stopped = false;
         

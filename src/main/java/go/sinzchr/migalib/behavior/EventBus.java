@@ -1,10 +1,12 @@
 package go.sinzchr.migalib.behavior;
 
 import go.sinzchr.migalib.MigaLib;
+import go.sinzchr.migalib.MigaLibEvents;
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.misc.Cancellable;
 import go.sinzchr.migalib.event.Listener;
 import go.sinzchr.migalib.misc.Priority;
+import go.sinzchr.migalib.resource.DataProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,11 +20,13 @@ public class EventBus
         protected final Map<Listener, Priority> PRIORITIES = new HashMap<>();
         protected final Map<Priority, List<Listener>> LISTENERS = new HashMap<>();
         
+        public final @NotNull DataProvider data;
         public boolean stopped = false;
         
         
-        public EventBus ()
+        public EventBus (@NotNull DataProvider data)
         {
+                this.data = data;
                 for (var priority : Priority.ALL_SORTED) LISTENERS.put(priority, new ArrayList<>());
         }
         
@@ -47,8 +51,10 @@ public class EventBus
                                 }
                                 catch (Exception e)
                                 {
-                                        MigaLib.LOGGER.error("Listener caught unexpected error when {} was emitted", ctx.event);
+                                        MigaLib.LOGGER.error("Removed listener from session due to unexpected error when {} occured", ctx.event);
                                         MigaLib.LOGGER.error(e.getMessage(), e);
+                                        iter.remove();
+                                        return;
                                 }
                                 
                                 if (ctx.stopSession) stopped = true;
@@ -74,7 +80,13 @@ public class EventBus
         
         public void setPriority (@NotNull Priority priority, @NotNull Listener listener)
         {
-                if (has(listener)) PRIORITIES.put(listener, priority);
+                var prev = getPriority(listener);
+                if (prev == null || prev == priority) return;
+                
+                LISTENERS.get(prev).remove(listener);
+                
+                PRIORITIES.put(listener, priority);
+                LISTENERS.get(priority).add(listener);
         }
         
         
@@ -95,6 +107,7 @@ public class EventBus
                 if (has(listener)) return this;
                 PRIORITIES.put(listener, priority);
                 LISTENERS.get(priority).add(listener);
+                listener.emit(new Context<>(MigaLibEvents.LISTENER_ADDED, data, null));
                 return this;
         }
         
@@ -112,6 +125,7 @@ public class EventBus
                 if (priority == null) return this;
                 PRIORITIES.remove(listener);
                 LISTENERS.get(priority).remove(listener);
+                listener.emit(new Context<>(MigaLibEvents.LISTENER_REMOVED, data, null));
                 return this;
         }
         
