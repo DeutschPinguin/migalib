@@ -3,8 +3,11 @@ package go.sinzchr.migalib;
 import go.sinzchr.migalib.behavior.GameSession;
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.event.Event;
+import go.sinzchr.migalib.misc.Status;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiPredicate;
@@ -19,26 +22,7 @@ public final class MigaLibSessions
         private MigaLibSessions () {}
         
         
-        public static <C> void start (
-                @NotNull BiPredicate<@NotNull Event<C>, C> shouldHandleEvent,
-                @NotNull GameSession session
-        )
-        {
-                if (has(session)) return;
-                add(session);
-                session.start();
-        }
-        
-        
-        public static void stop (@NotNull GameSession session)
-        {
-                if (!has(session)) return;
-                remove(session);
-                session.stop();
-        }
-        
-        
-        public static <C> void emit (@NotNull Event<C> event, C callback)
+        public static void checkForStopped ()
         {
                 var iter = SESSIONS.keySet().iterator();
                 
@@ -46,17 +30,56 @@ public final class MigaLibSessions
                 {
                         var session = iter.next();
                         
-                        var predicate = SESSIONS.get(session);
-                        if (!predicate.test(event, callback)) continue;
-                        
-                        session.emit(event, callback);
-                        
-                        if (session.stopped)
+                        if (session.status == Status.SHUTDOWN)
                         {
-                                iter.remove();
+                                MigaLib.LOGGER.info("session is about to stop");
                                 session.stop();
+                                session.status = Status.DEAD;
+                        }
+                        
+                        if (session.status == Status.DEAD)
+                        {
+                                MigaLib.LOGGER.info("session is removed");
+                                iter.remove();
+                        }
+                        
+                        else
+                        {
+                                MigaLib.LOGGER.info("session is alive");
                         }
                 }
+        }
+        
+        
+        public static <C> void start (
+                @NotNull BiPredicate<@NotNull Event<C>, C> shouldHandleEvent,
+                @NotNull GameSession session
+        )
+        {
+                if (has(session)) return;
+                session.status = Status.STARTUP;
+                add(session);
+                session.start();
+                session.status = Status.ALIVE;
+        }
+        
+        
+        public static void stop (@NotNull GameSession session)
+        {
+                if (!has(session)) return;
+                session.status = Status.SHUTDOWN;
+                remove(session);
+                session.stop();
+                session.status = Status.DEAD;
+        }
+        
+        
+        public static <C> void emit (@NotNull Event<C> event, C callback)
+        {
+                SESSIONS.forEach((session, predicate) -> {
+                        if (!predicate.test(event, callback)) return;
+                        session.emit(event, callback);
+                });
         }
         
         
@@ -66,9 +89,9 @@ public final class MigaLibSessions
         }
         
         
-        public static boolean has (@NotNull GameSession session)
+        public static boolean has (@Nullable GameSession session)
         {
-                return SESSIONS.containsKey(session);
+                return session != null && SESSIONS.containsKey(session);
         }
         
         
@@ -148,6 +171,7 @@ public final class MigaLibSessions
         
         static void init ()
         {
+                ServerTickEvents.END_SERVER_TICK.register(server -> checkForStopped());
                 ServerLifecycleEvents.SERVER_STOPPING.register(server -> clearAll());
         }
         

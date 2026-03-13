@@ -135,7 +135,7 @@ public final class PointsEditorCommand
                 return Text.literal("Point ")
                         .append(Text.literal(String.format("[%s]", point)).formatted(Formatting.GREEN))
                         .append(" does not tagged with ")
-                        .append(Text.literal(String.format("[%s]", tag)).formatted(Formatting.GREEN));
+                        .append(Text.literal(String.format("<%s>", tag)).formatted(Formatting.BLUE));
         }
         
         
@@ -637,7 +637,19 @@ public final class PointsEditorCommand
                 @NotNull SuggestionsBuilder builder
         )
         {
-                var containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                Identifier containerIdentifier;
+                try
+                {
+                        containerIdentifier = IdentifierArgumentType.getIdentifier(ctx, "container");
+                }
+                catch (IllegalArgumentException e)
+                {
+                        var player = ctx.getSource().getPlayer();
+                        if (player == null) return builder.buildFuture();
+                        containerIdentifier = getSelectedContainer(player.getUuid());
+                        if (containerIdentifier == null) return builder.buildFuture();
+                }
+                
                 var container = state(ctx).get(containerIdentifier);
                 if (container == null) return builder.buildFuture();
                 
@@ -956,12 +968,10 @@ public final class PointsEditorCommand
         
         public static void registerBoth (@NotNull CommandDispatcher<ServerCommandSource> dispatcher)
         {
-                dispatcher.register(createContainers("migalib:container")
-                        .requires(source -> source.hasPermissionLevel(4))
-                );
-                
                 dispatcher.register(createPoints("migalib:point")
-                        .requires(source -> source.hasPermissionLevel(4)));
+                        .requires(source -> source.hasPermissionLevel(4))
+                        .then(createContainers("container"))
+                );
         }
         
 }

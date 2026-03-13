@@ -4,6 +4,7 @@ import go.sinzchr.migalib.MigaLibEvents;
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.event.Event;
 import go.sinzchr.migalib.event.Listener;
+import go.sinzchr.migalib.misc.Status;
 import go.sinzchr.migalib.resource.DataContainer;
 import org.jetbrains.annotations.NotNull;
 
@@ -15,19 +16,22 @@ public class GameSession
         public final @NotNull DataContainer dataContainer = new DataContainer();
         public final @NotNull EventBus eventBus = new EventBus(dataContainer);
         
-        public boolean stopped = false;
+        /**
+         * <p>
+         *         Lifetime status for external handling.
+         * </p>
+         */
+        public @NotNull Status status = Status.DEAD;
         
         
         public void start ()
         {
-                stopped = false;
                 emit(MigaLibEvents.SESSION_START, null);
         }
         
         
         public void stop ()
         {
-                stopped = true;
                 emit(MigaLibEvents.SESSION_STOP, null);
         }
         
@@ -36,7 +40,7 @@ public class GameSession
         public <C> void emit (@NotNull Context<C> context)
         {
                 eventBus.emit(context);
-                if (eventBus.stopped) stopped = true;
+                if (eventBus.stopped) status = Status.SHUTDOWN;
         }
         
         

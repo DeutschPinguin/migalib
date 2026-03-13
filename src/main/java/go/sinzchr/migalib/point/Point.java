@@ -5,11 +5,15 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Position;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -182,6 +186,18 @@ public class Point
         public @NotNull Identifier world ()
         {
                 return WORLD;
+        }
+        
+        
+        public @Nullable RegistryKey<World> getWorldRegistryKey ()
+        {
+                return RegistryKey.of(RegistryKeys.WORLD, WORLD);
+        }
+        
+        
+        public @Nullable World getWorldInstance (@NotNull MinecraftServer server)
+        {
+                return server.getWorld(getWorldRegistryKey());
         }
         
         
