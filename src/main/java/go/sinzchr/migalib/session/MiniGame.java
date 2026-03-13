@@ -1,23 +1,24 @@
-package go.sinzchr.migalib.resource;
+package go.sinzchr.migalib.session;
 
+import net.minecraft.server.MinecraftServer;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 
-public class Resource<T>
+public class MiniGame
 {
         
         protected final @NotNull String ID;
         protected final int hash;
-        protected final @NotNull Supplier<T> DEFAULT;
+        protected final @NotNull Function<@NotNull MinecraftServer, @NotNull GameSession> CREATOR;
         
         
-        public Resource (@NotNull String id, @NotNull Supplier<T> defaultValue)
+        public MiniGame (@NotNull String id, @NotNull Function<@NotNull MinecraftServer, @NotNull GameSession> creator)
         {
                 ID = id;
                 hash = ID.hashCode();
-                DEFAULT = defaultValue;
+                CREATOR = creator;
         }
         
         
@@ -27,9 +28,9 @@ public class Resource<T>
         }
         
         
-        public T getDefaultValue ()
+        public @NotNull GameSession create (@NotNull MinecraftServer server)
         {
-                return DEFAULT.get();
+                return CREATOR.apply(server);
         }
         
         
@@ -43,14 +44,14 @@ public class Resource<T>
         @Override
         public boolean equals (Object obj)
         {
-                return obj instanceof Resource<?> other && other.hash == hash;
+                return obj instanceof MiniGame other && other.hash == hash;
         }
         
         
         @Override
         public String toString ()
         {
-                return "Resource[" + ID + "]";
+                return "MiniGame[" + ID + "]";
         }
         
 }

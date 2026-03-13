@@ -1,5 +1,6 @@
-package go.sinzchr.migalib.event;
+package go.sinzchr.migalib.event.listener;
 
+import go.sinzchr.migalib.event.Context;
 import org.jetbrains.annotations.NotNull;
 
 

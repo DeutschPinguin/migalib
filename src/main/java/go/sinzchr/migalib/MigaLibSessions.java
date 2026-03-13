@@ -1,9 +1,10 @@
 package go.sinzchr.migalib;
 
-import go.sinzchr.migalib.behavior.GameSession;
+import go.sinzchr.migalib.session.GameSession;
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.event.Event;
 import go.sinzchr.migalib.misc.Status;
+import go.sinzchr.migalib.session.MiniGame;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import org.jetbrains.annotations.NotNull;
@@ -16,7 +17,8 @@ import java.util.function.BiPredicate;
 public final class MigaLibSessions
 {
         
-        private static final Map<GameSession, BiPredicate<Event<?>, Object>> SESSIONS = new HashMap<>();
+        private static final Map<MiniGame, GameSession> SESSIONS = new HashMap<>();
+        private static final Map<GameSession, BiPredicate<Event<?>, Object>> PREDICATES = new HashMap<>();
         
         
         private MigaLibSessions () {}
@@ -24,7 +26,7 @@ public final class MigaLibSessions
         
         public static void checkForStopped ()
         {
-                var iter = SESSIONS.keySet().iterator();
+                var iter = SESSIONS.values().iterator();
                 
                 while (iter.hasNext())
                 {
@@ -76,7 +78,7 @@ public final class MigaLibSessions
         
         public static <C> void emit (@NotNull Event<C> event, C callback)
         {
-                SESSIONS.forEach((session, predicate) -> {
+                PREDICATES.forEach((session, predicate) -> {
                         if (!predicate.test(event, callback)) return;
                         session.emit(event, callback);
                 });
@@ -89,9 +91,21 @@ public final class MigaLibSessions
         }
         
         
+        public static boolean has (@NotNull MiniGame id)
+        {
+                return SESSIONS.containsKey(id);
+        }
+        
+        
         public static boolean has (@Nullable GameSession session)
         {
-                return session != null && SESSIONS.containsKey(session);
+                return session != null && has(session.id);
+        }
+        
+        
+        public static @Nullable GameSession get (@NotNull MiniGame id)
+        {
+                return SESSIONS.get(id);
         }
         
         
@@ -100,7 +114,8 @@ public final class MigaLibSessions
                 @NotNull GameSession session
         )
         {
-                SESSIONS.putIfAbsent(session, (BiPredicate) shouldHandleEvent);
+                SESSIONS.putIfAbsent(session.id, session);
+                PREDICATES.putIfAbsent(session, (BiPredicate) shouldHandleEvent);
                 return session;
         }
         
@@ -113,7 +128,8 @@ public final class MigaLibSessions
         
         public static void remove (@NotNull GameSession session)
         {
-                SESSIONS.remove(session);
+                SESSIONS.remove(session.id);
+                PREDICATES.remove(session);
         }
         
         
@@ -165,7 +181,7 @@ public final class MigaLibSessions
         
         public static void clearAll ()
         {
-                SESSIONS.clear();
+                PREDICATES.clear();
         }
         
         

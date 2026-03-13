@@ -1,10 +1,9 @@
-package go.sinzchr.migalib.behavior;
+package go.sinzchr.migalib.event.listener;
 
 import go.sinzchr.migalib.MigaLib;
 import go.sinzchr.migalib.MigaLibEvents;
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.misc.Cancellable;
-import go.sinzchr.migalib.event.Listener;
 import go.sinzchr.migalib.misc.Priority;
 import go.sinzchr.migalib.resource.DataProvider;
 import org.jetbrains.annotations.NotNull;

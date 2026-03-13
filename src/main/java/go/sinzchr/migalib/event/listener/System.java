@@ -1,8 +1,7 @@
-package go.sinzchr.migalib.behavior;
+package go.sinzchr.migalib.event.listener;
 
 import go.sinzchr.migalib.event.Context;
 import go.sinzchr.migalib.event.Event;
-import go.sinzchr.migalib.event.Listener;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

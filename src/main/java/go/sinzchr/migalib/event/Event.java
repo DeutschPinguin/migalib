@@ -17,7 +17,7 @@ public class Event<C>
         }
         
         
-        public @NotNull String getId ()
+        public @NotNull String id ()
         {
                 return ID;
         }
